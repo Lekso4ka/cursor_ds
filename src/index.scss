@@ -1,0 +1,14 @@
+$c: #dedede;
+$bg: #222;
+
+body {
+	margin: 0;
+	font-family: sans-serif;
+	min-height: 100vh;
+	color: $c;
+	background-color: $bg;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-size: 40px;
+}
