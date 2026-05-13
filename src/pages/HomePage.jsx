@@ -1,0 +1,352 @@
+import React, { useState } from "react";
+import styled from "@emotion/styled";
+import {
+	TextField,
+	TextAreaField,
+	NumberField,
+	PasswordField,
+	SelectField,
+	DateField,
+	TimeField,
+	OtpInput,
+	CheckboxField,
+	RadioGroup,
+	RadioItem,
+	RangeField,
+} from "../components/form";
+import { formTokens as t } from "../components/form/tokens";
+
+const Page = styled.main`
+	min-height: 100vh;
+	padding: 32px 24px 64px;
+	background: radial-gradient(1200px 600px at 20% 0%, #1e293b, #0f1115);
+	color: ${t.fg};
+`;
+
+const Title = styled.h1`
+	margin: 0 0 8px;
+	font-size: 28px;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+`;
+
+const Lead = styled.p`
+	margin: 0 0 28px;
+	max-width: 720px;
+	color: ${t.muted};
+	line-height: 1.55;
+	font-size: 15px;
+`;
+
+const Section = styled.section`
+	margin-bottom: 36px;
+`;
+
+const SectionTitle = styled.h2`
+	margin: 0 0 14px;
+	font-size: 18px;
+	font-weight: 650;
+	color: #cbd5e1;
+`;
+
+const Grid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	gap: 18px 22px;
+	align-items: start;
+`;
+
+const SoloRadioBlock = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+`;
+
+const SoloRadioCaption = styled.div`
+	font-size: 13px;
+	font-weight: 600;
+	color: ${t.muted};
+`;
+
+const DEMO_OPTIONS = [
+	{ value: "msk", label: "Москва" },
+	{ value: "spb", label: "Санкт-Петербург" },
+	{ value: "nsk", label: "Новосибирск" },
+	{ value: "ekb", label: "Екатеринбург" },
+	{ value: "kzn", label: "Казань" },
+];
+
+export function HomePage() {
+	const [otpCode, setOtpCode] = useState("");
+	const [creatableCityOptions, setCreatableCityOptions] = useState(DEMO_OPTIONS);
+	const [plan, setPlan] = useState("pro");
+	const [rangeLoHi, setRangeLoHi] = useState({ min: 20, max: 80 });
+	const [time12, setTime12] = useState("14:00");
+
+	return (
+		<Page>
+			<Title>Демонстрация полей формы</Title>
+			<Lead>
+				Компоненты на <code>@emotion/styled</code>: текст, многострочный ввод, число, пароль,
+				чекбокс, радио, диапазон, комбобокс (select / multiselect / chips), дата и время. У полей
+				ввода — подпись сверху, «плавающая» подпись или без подписи.
+			</Lead>
+
+			<Section>
+				<SectionTitle>Текстовое поле</SectionTitle>
+				<Grid>
+					<TextField placeholder="Без label" helperText="Подсказка под полем" />
+					<TextField label="Имя" labelMode="above" placeholder="Иван" helperText="Как в паспорте" />
+					<TextField
+						label="Email"
+						labelMode="floating"
+						defaultValue="hello@example.com"
+						helperText="Плавающий label при заполненном значении"
+					/>
+					<TextField label="Компания" labelMode="floating" placeholder="ООО Ромашка" />
+					<TextField label="С ошибкой" labelMode="above" error="Обязательное поле" defaultValue="" />
+				</Grid>
+			</Section>
+
+			<Section>
+				<SectionTitle>Многострочный ввод</SectionTitle>
+				<Grid>
+					<TextAreaField
+						placeholder="Комментарий без label"
+						rows={2}
+						helperText="Высота по умолчанию — 3 строки; здесь rows={2}"
+					/>
+					<TextAreaField
+						label="Описание"
+						labelMode="above"
+						rows={3}
+						placeholder="2–3 строки однострочного поля по метрикам шрифта и отступов"
+					/>
+					<TextAreaField
+						label="Заметка"
+						labelMode="floating"
+						defaultValue="Уже заполнено"
+						helperText="Плавающий label"
+					/>
+					<TextAreaField label="С ошибкой" labelMode="above" error="Обязательное поле" rows={2} />
+				</Grid>
+			</Section>
+
+			<Section>
+				<SectionTitle>Чекбокс</SectionTitle>
+				<Grid>
+					<CheckboxField label="Согласен с условиями" helperText="Подпись справа от квадрата" />
+					<CheckboxField label="Рассылка" defaultChecked helperText="По умолчанию включено" />
+					<CheckboxField label="Недоступно" disabled helperText="disabled" />
+					<CheckboxField label="Ошибка" error="Нужно отметить" />
+				</Grid>
+			</Section>
+
+			<Section>
+				<SectionTitle>Радиокнопки</SectionTitle>
+				<Grid>
+					<RadioGroup
+						name="plan-demo"
+						label="Тариф"
+						labelMode="above"
+						options={[
+							{ value: "free", label: "Бесплатный" },
+							{ value: "pro", label: "Про" },
+							{ value: "biz", label: "Бизнес", disabled: true },
+						]}
+						value={plan}
+						onChange={(e) => setPlan(e.target.value)}
+						helperText="Контролируемое значение"
+					/>
+					<RadioGroup
+						name="pay-demo"
+						labelMode="none"
+						options={[
+							{ value: "card", label: "Карта" },
+							{ value: "invoice", label: "Счёт" },
+						]}
+						defaultValue="card"
+					/>
+					<SoloRadioBlock>
+						<SoloRadioCaption>Одна радиокнопка (RadioItem)</SoloRadioCaption>
+						<RadioItem name="solo-demo" value="only" label="Единственный вариант" defaultChecked />
+					</SoloRadioBlock>
+				</Grid>
+			</Section>
+
+			<Section>
+				<SectionTitle>Диапазон (одно значение / интервал)</SectionTitle>
+				<Grid>
+					<RangeField label="Громкость" labelMode="above" defaultValue={35} min={0} max={100} />
+					<RangeField label="Баланс" labelMode="floating" defaultValue={50} helperText="Плавающий label" />
+					<RangeField mode="range" label="Цена" labelMode="above" min={0} max={100} step={5} value={rangeLoHi} onRangeChange={setRangeLoHi} helperText="Два ползунка" />
+					<RangeField mode="range" labelMode="none" min={10} max={90} defaultValue={{ min: 30, max: 70 }} />
+				</Grid>
+			</Section>
+
+			<Section>
+				<SectionTitle>Число (max = 100)</SectionTitle>
+				<Grid>
+					<NumberField placeholder="Без label" max={100} min={0} helperText="0…100" />
+					<NumberField label="Процент" labelMode="above" max={100} defaultValue={42} />
+					<NumberField label="Баллы" labelMode="floating" max={100} placeholder="0–100" />
+				</Grid>
+			</Section>
+
+			<Section>
+				<SectionTitle>Пароль</SectionTitle>
+				<Grid>
+					<PasswordField placeholder="Секрет" visibilityToggle={false} />
+					<PasswordField label="Пароль" labelMode="above" defaultValue="hunter2" />
+					<PasswordField label="Ключ" labelMode="floating" placeholder="••••••••" />
+				</Grid>
+			</Section>
+
+			<Section>
+				<SectionTitle>Выпадающий список с вводом</SectionTitle>
+				<Grid>
+					<SelectField options={DEMO_OPTIONS} placeholder="Город (single)" variant="select" />
+					<SelectField
+						label="Город"
+						labelMode="above"
+						variant="select"
+						options={DEMO_OPTIONS}
+						defaultValue="spb"
+					/>
+					<SelectField
+						label="Регионы"
+						labelMode="floating"
+						variant="multiselect"
+						options={DEMO_OPTIONS}
+						defaultValue={["msk", "spb", "nsk", "ekb"]}
+					/>
+					<SelectField
+						label="Теги (chips, фикс. высота)"
+						labelMode="floating"
+						variant="chips"
+						options={DEMO_OPTIONS}
+						expandable={false}
+						defaultValue={["msk", "spb", "nsk", "kzn"]}
+					/>
+					<SelectField
+						label="Теги (chips, expandable)"
+						labelMode="floating"
+						variant="chips"
+						options={DEMO_OPTIONS}
+						expandable
+						defaultValue={["msk", "spb", "nsk", "ekb", "kzn"]}
+					/>
+					<SelectField
+						label="Без фильтра"
+						labelMode="above"
+						variant="select"
+						options={DEMO_OPTIONS}
+						filterable={false}
+						defaultValue="ekb"
+					/>
+					<SelectField
+						label="Creatable (одиночный)"
+						labelMode="above"
+						variant="select"
+						options={creatableCityOptions}
+						creatable
+						placeholder="Выберите или введите новый…"
+						helperText="Пункт «Создать…» или Enter; опции дополняются через onCreateOption"
+						getNewOptionData={(input) => ({
+							value: input.trim().toLowerCase().replace(/\s+/g, "_"),
+							label: input.trim(),
+						})}
+						onCreateOption={(_raw, opt) =>
+							setCreatableCityOptions((prev) =>
+								prev.some((o) => o.value === opt.value) ? prev : [...prev, opt],
+							)
+						}
+					/>
+					<SelectField
+						label="Creatable multiselect"
+						labelMode="floating"
+						variant="multiselect"
+						options={creatableCityOptions}
+						creatable
+						defaultValue={["msk"]}
+						getNewOptionData={(input) => ({
+							value: input.trim().toLowerCase().replace(/\s+/g, "_"),
+							label: input.trim(),
+						})}
+						onCreateOption={(_raw, opt) =>
+							setCreatableCityOptions((prev) =>
+								prev.some((o) => o.value === opt.value) ? prev : [...prev, opt],
+							)
+						}
+					/>
+				</Grid>
+			</Section>
+
+			<Section>
+				<SectionTitle>OTP (код из цифр)</SectionTitle>
+				<Grid>
+					<OtpInput
+						length={4}
+						label="Код из 4 цифр"
+						labelMode="above"
+						helperText="Цифра вводится в отдельное поле, курсор переходит вперёд; Backspace — назад"
+					/>
+					<OtpInput length={6} label="Код подтверждения" labelMode="floating" />
+					<OtpInput length={4} labelMode="none" helperText="Без label над группой" />
+					<OtpInput
+						length={4}
+						label="Контролируемое значение"
+						labelMode="above"
+						value={otpCode}
+						onChange={(e) => setOtpCode(e.target.value)}
+						helperText={otpCode.length ? `Сейчас: ${otpCode}` : "Введите четыре цифры"}
+					/>
+					<OtpInput length={4} label="С ошибкой" labelMode="above" error="Неверный код" defaultValue="12" />
+				</Grid>
+			</Section>
+
+			<Section>
+				<SectionTitle>Дата и время</SectionTitle>
+				<Grid>
+					<DateField
+						label="Дата встречи"
+						labelMode="above"
+						helperText="Ввод вручную: ГГГГ-ММ-ДД или ДД.ММ.ГГГГ; Enter или blur — применить"
+					/>
+					<DateField
+						label="Маска ISO"
+						labelMode="above"
+						dateInputMask="iso"
+						defaultValue="2026-06-01"
+						helperText="dateInputMask=&quot;iso&quot; — только цифры, разделители «-»"
+					/>
+					<DateField
+						label="Маска ДД.ММ.ГГГГ"
+						labelMode="above"
+						dateInputMask="dmy_dot"
+						min="2026-01-01"
+						max="2026-12-31"
+						helperText="dateInputMask=&quot;dmy_dot&quot;"
+					/>
+					<DateField
+						label="Маска ДД/ММ/ГГГГ"
+						labelMode="floating"
+						dateInputMask="dmy_slash"
+						helperText="dateInputMask=&quot;dmy_slash&quot;"
+					/>
+					<DateField label="Срок" labelMode="floating" min="2026-01-01" max="2026-12-31" />
+					<TimeField label="Начало" labelMode="above" defaultValue="09:30" />
+					<TimeField label="Окончание" labelMode="floating" step={900} helperText="Шаг 15 минут" />
+					<TimeField
+						label="Время (12 ч)"
+						labelMode="above"
+						hour12
+						value={time12}
+						onChange={(e) => setTime12(e.target.value)}
+						helperText="Ввод: ЧЧ:ММ, h:mm AM/PM или 13:30; в форме — всегда 24 ч (HH:MM)"
+					/>
+				</Grid>
+			</Section>
+		</Page>
+	);
+}
