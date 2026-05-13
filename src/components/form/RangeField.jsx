@@ -7,7 +7,14 @@ import {
 	FloatingFrame,
 	FloatingLabel,
 } from "./FieldShell.styles";
-import { RangeTrackWrap, RangeDualInput, RangeSingleInput, RangeValueRow } from "./RangeField.styles";
+import {
+	RangeTrackWrap,
+	RangeDualInput,
+	RangeSingleInput,
+	RangeSingleShell,
+	RangeBoundsRow,
+	RangeValueRow,
+} from "./RangeField.styles";
 
 function useFilledStateSingle(value, defaultValue) {
 	const isControlled = value !== undefined;
@@ -46,6 +53,9 @@ function clamp(n, lo, hi) {
  *
  * В режиме диапазона: `value` / `defaultValue` — `{ min, max }`, обновления через `onRangeChange`.
  *
+ * Подписи: `formatValueLabel` форматирует числа в подсказке и под дорожкой; `showBoundsLabels` — ряд с min/max шкалы;
+ * в режиме single `showValueLabelsBelow` — крупная подпись значения под слайдером (без дублирования в helper).
+ *
  * @param {{
  *   id?: string,
  *   label?: string,
@@ -65,6 +75,9 @@ function clamp(n, lo, hi) {
  *   helperText?: string,
  *   fullWidth?: boolean,
  *   showValue?: boolean,
+ *   formatValueLabel?: (n: number) => string,
+ *   showBoundsLabels?: boolean,
+ *   showValueLabelsBelow?: boolean,
  * }} props
  */
 export function RangeField({
@@ -86,6 +99,9 @@ export function RangeField({
 	helperText,
 	fullWidth = false,
 	showValue = true,
+	formatValueLabel,
+	showBoundsLabels = false,
+	showValueLabelsBelow = false,
 }) {
 	const autoId = useId();
 	const id = idProp || autoId;
@@ -104,13 +120,35 @@ export function RangeField({
 			onChange?.(e);
 		};
 
+		const fmt = formatValueLabel ?? ((n) => String(n));
 		const valueHint =
-			showValue && !Number.isNaN(v)
-				? `Текущее: ${v} (${min}–${max})`
-				: showValue && Number.isNaN(v)
-					? `Диапазон: ${min}–${max}`
+			showValue && !showValueLabelsBelow && !Number.isNaN(v)
+				? `Текущее: ${fmt(v)} (${fmt(min)}–${fmt(max)})`
+				: showValue && !showValueLabelsBelow && Number.isNaN(v)
+					? `Диапазон: ${fmt(min)}–${fmt(max)}`
 					: "";
 		const mergedHelper = [helperText, valueHint].filter(Boolean).join(" · ");
+
+		const valueBlock =
+			showValue && showValueLabelsBelow && !Number.isNaN(v) ? (
+				<>
+					{showBoundsLabels ? (
+						<RangeBoundsRow>
+							<span>{fmt(min)}</span>
+							<span>{fmt(max)}</span>
+						</RangeBoundsRow>
+					) : null}
+					<RangeValueRow $variant="center">
+						<strong>{fmt(v)}</strong>
+					</RangeValueRow>
+				</>
+			) : null;
+
+		const showErr = Boolean(error);
+		const errorTextStr = typeof error === "string" ? error : error ? "Ошибка" : "";
+		const visibleHelper = showErr ? errorTextStr : mergedHelper || "";
+		const helperId = `${id}-helper`;
+		const ariaDescribedBy = visibleHelper ? helperId : undefined;
 
 		return (
 			<FieldShell
@@ -123,22 +161,29 @@ export function RangeField({
 				fullWidth={fullWidth}
 				filled={filled}
 				focused={focused}
+				attachAriaToChild={false}
 			>
-				<RangeSingleInput
-					type="range"
-					name={name}
-					min={min}
-					max={max}
-					step={step}
-					value={isControlled ? v : undefined}
-					defaultValue={isControlled ? undefined : v}
-					onChange={handleChange}
-					onFocus={() => setFocused(true)}
-					onBlur={() => setFocused(false)}
-					disabled={disabled}
-					required={required}
-					style={floating ? { marginTop: 8 } : undefined}
-				/>
+				<RangeSingleShell>
+					<RangeSingleInput
+						id={id}
+						type="range"
+						name={name}
+						min={min}
+						max={max}
+						step={step}
+						value={isControlled ? v : undefined}
+						defaultValue={isControlled ? undefined : v}
+						onChange={handleChange}
+						onFocus={() => setFocused(true)}
+						onBlur={() => setFocused(false)}
+						disabled={disabled}
+						required={required}
+						aria-invalid={showErr || undefined}
+						aria-describedby={ariaDescribedBy}
+						style={floating ? { marginTop: 8 } : undefined}
+					/>
+					{valueBlock}
+				</RangeSingleShell>
 			</FieldShell>
 		);
 	}
@@ -163,6 +208,8 @@ export function RangeField({
 	const hi = clamp(snap(rv.max, step), min, max);
 	const minVal = Math.min(lo, hi);
 	const maxVal = Math.max(lo, hi);
+
+	const fmt = formatValueLabel ?? ((n) => String(n));
 
 	const emitRange = useCallback(
 		(next) => {
@@ -223,10 +270,16 @@ export function RangeField({
 					$z={2}
 				/>
 			</RangeTrackWrap>
+			{showBoundsLabels ? (
+				<RangeBoundsRow>
+					<span>{fmt(min)}</span>
+					<span>{fmt(max)}</span>
+				</RangeBoundsRow>
+			) : null}
 			{showValue ? (
-				<RangeValueRow>
-					<span>{minVal}</span>
-					<span>{maxVal}</span>
+				<RangeValueRow $variant="spread">
+					<span>{fmt(minVal)}</span>
+					<span>{fmt(maxVal)}</span>
 				</RangeValueRow>
 			) : null}
 		</>

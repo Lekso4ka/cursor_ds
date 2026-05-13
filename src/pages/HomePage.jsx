@@ -7,9 +7,11 @@ import {
 	PasswordField,
 	SelectField,
 	DateField,
+	DateSplitField,
 	TimeField,
 	OtpInput,
 	CheckboxField,
+	SwitchButton,
 	RadioGroup,
 	RadioItem,
 	RangeField,
@@ -76,19 +78,25 @@ const DEMO_OPTIONS = [
 	{ value: "kzn", label: "Казань" },
 ];
 
+/** Даты для демо подсветки в календаре (июнь 2026). */
+const DEMO_MARKED_DATES = ["2026-06-03", "2026-06-10", "2026-06-17", "2026-06-24"];
+
 export function HomePage() {
 	const [otpCode, setOtpCode] = useState("");
 	const [creatableCityOptions, setCreatableCityOptions] = useState(DEMO_OPTIONS);
 	const [plan, setPlan] = useState("pro");
 	const [rangeLoHi, setRangeLoHi] = useState({ min: 20, max: 80 });
 	const [time12, setTime12] = useState("14:00");
+	const [moneyDemo, setMoneyDemo] = useState("150000");
+	const [splitDateIso, setSplitDateIso] = useState("2026-06-15");
+	const [switchDemo, setSwitchDemo] = useState(true);
 
 	return (
 		<Page>
 			<Title>Демонстрация полей формы</Title>
 			<Lead>
 				Компоненты на <code>@emotion/styled</code>: текст, многострочный ввод, число, пароль,
-				чекбокс, радио, диапазон, комбобокс (select / multiselect / chips), дата и время. У полей
+				чекбокс, переключатель (SwitchButton), радио, диапазон, комбобокс (select / multiselect / chips), дата и время. У полей
 				ввода — подпись сверху, «плавающая» подпись или без подписи.
 			</Lead>
 
@@ -143,6 +151,22 @@ export function HomePage() {
 			</Section>
 
 			<Section>
+				<SectionTitle>Переключатель (SwitchButton)</SectionTitle>
+				<Grid>
+					<SwitchButton label="Уведомления" helperText="Неконтролируемый" />
+					<SwitchButton label="Автосохранение" defaultChecked helperText="defaultChecked" />
+					<SwitchButton
+						label="Контролируемый"
+						checked={switchDemo}
+						onChange={(e) => setSwitchDemo(e.target.checked)}
+						helperText={switchDemo ? "Включено" : "Выключено"}
+					/>
+					<SwitchButton label="Недоступно" disabled defaultChecked helperText="disabled" />
+					<SwitchButton label="С ошибкой" error="Включите опцию" />
+				</Grid>
+			</Section>
+
+			<Section>
 				<SectionTitle>Радиокнопки</SectionTitle>
 				<Grid>
 					<RadioGroup
@@ -178,8 +202,28 @@ export function HomePage() {
 				<SectionTitle>Диапазон (одно значение / интервал)</SectionTitle>
 				<Grid>
 					<RangeField label="Громкость" labelMode="above" defaultValue={35} min={0} max={100} />
-					<RangeField label="Баланс" labelMode="floating" defaultValue={50} helperText="Плавающий label" />
-					<RangeField mode="range" label="Цена" labelMode="above" min={0} max={100} step={5} value={rangeLoHi} onRangeChange={setRangeLoHi} helperText="Два ползунка" />
+					<RangeField
+						label="Баланс"
+						labelMode="floating"
+						defaultValue={50}
+						showValueLabelsBelow
+						showBoundsLabels
+						formatValueLabel={(n) => `${n}%`}
+						helperText="Подписи под дорожкой: границы шкалы и значение"
+					/>
+					<RangeField
+						mode="range"
+						label="Цена"
+						labelMode="above"
+						min={0}
+						max={100}
+						step={5}
+						value={rangeLoHi}
+						onRangeChange={setRangeLoHi}
+						showBoundsLabels
+						formatValueLabel={(n) => `${n} ₽`}
+						helperText="Подписи выбранного интервала и границ шкалы"
+					/>
 					<RangeField mode="range" labelMode="none" min={10} max={90} defaultValue={{ min: 30, max: 70 }} />
 				</Grid>
 			</Section>
@@ -190,6 +234,25 @@ export function HomePage() {
 					<NumberField placeholder="Без label" max={100} min={0} helperText="0…100" />
 					<NumberField label="Процент" labelMode="above" max={100} defaultValue={42} />
 					<NumberField label="Баллы" labelMode="floating" max={100} placeholder="0–100" />
+					<NumberField
+						label="Сумма"
+						labelMode="above"
+						groupThousands
+						thousandsSeparator=" "
+						suffix="руб."
+						max={99999999}
+						value={moneyDemo}
+						onChange={(e) => setMoneyDemo(e.target.value)}
+						helperText="Группы разрядов пробелом; справа подпись; в форме — без пробелов"
+					/>
+					<NumberField
+						label="Количество"
+						labelMode="floating"
+						suffix="шт"
+						min={0}
+						defaultValue={24}
+						helperText="Только суффикс, без группировки"
+					/>
 				</Grid>
 			</Section>
 
@@ -333,6 +396,37 @@ export function HomePage() {
 						labelMode="floating"
 						dateInputMask="dmy_slash"
 						helperText="dateInputMask=&quot;dmy_slash&quot;"
+					/>
+					<DateField
+						label="Подсветка в календаре"
+						labelMode="above"
+						defaultValue="2026-06-15"
+						min="2026-01-01"
+						max="2026-12-31"
+						markedDates={DEMO_MARKED_DATES}
+						helperText="markedDates — фон; сегодня — рамка (откройте календарь)"
+					/>
+					<DateSplitField
+						label="Дата (ДД · ММ · ГГГГ)"
+						labelMode="above"
+						value={splitDateIso}
+						onChange={(e) => setSplitDateIso(e.target.value)}
+						dateOrder="dmy"
+						dateSeparator="."
+						min="2026-01-01"
+						max="2026-12-31"
+						markedDates={DEMO_MARKED_DATES}
+						helperText="Три поля + календарь; вставка ГГГГ-ММ-ДД или ДД.ММ.ГГГГ"
+					/>
+					<DateSplitField
+						label="Порядок ГГГГ-ММ-ДД"
+						labelMode="floating"
+						dateOrder="ymd"
+						dateSeparator="-"
+						defaultValue="2026-03-20"
+						min="2020-01-01"
+						max="2030-12-31"
+						helperText="dateOrder=&quot;ymd&quot;, dateSeparator=&quot;-&quot;"
 					/>
 					<DateField label="Срок" labelMode="floating" min="2026-01-01" max="2026-12-31" />
 					<TimeField label="Начало" labelMode="above" defaultValue="09:30" />

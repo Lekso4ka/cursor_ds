@@ -1,11 +1,8 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { FieldShell } from "./FieldShell";
 import { useAnchorPopoverLayout } from "./useAnchorPopoverLayout";
 import {
-	DateRoot,
 	DateHidden,
-	DateInputRow,
-	DateTextInput,
 	DateCalButton,
 	DatePop,
 	DateNav,
@@ -17,6 +14,23 @@ import {
 	DateGrid,
 	DateDayBtn,
 } from "./DateField.styles";
+import {
+	DateSplitRoot,
+	DateSplitInputRow,
+	DatePartInput,
+	DateSplitSep,
+} from "./DateSplitField.styles";
+
+/** @typedef {'dmy' | 'ymd' | 'mdy'} DateSplitOrder */
+
+const ORDER = /** @type {const} */ ({
+	dmy: [0, 1, 2],
+	ymd: [2, 1, 0],
+	mdy: [1, 0, 2],
+});
+
+const PART_ARIA = ["День", "Месяц", "Год"];
+const PART_MAX = [2, 2, 4];
 
 function useFilledState(value, defaultValue) {
 	const isControlled = value !== undefined;
@@ -41,7 +55,13 @@ function parseIsoDate(s) {
 	return validateYmd(Number(m[1]), Number(m[2]), Number(m[3]));
 }
 
-/** ISO или ДД.ММ.ГГГГ / ДД/ММ/ГГГГ (разделитель . или /). */
+function fmtIso(d) {
+	const y = d.getFullYear();
+	const mo = String(d.getMonth() + 1).padStart(2, "0");
+	const day = String(d.getDate()).padStart(2, "0");
+	return `${y}-${mo}-${day}`;
+}
+
 function parseFlexibleDate(s) {
 	const t = s.trim();
 	if (!t) return null;
@@ -50,80 +70,6 @@ function parseFlexibleDate(s) {
 	m = /^(\d{1,2})[./](\d{1,2})[./](\d{4})$/.exec(t);
 	if (m) return validateYmd(Number(m[3]), Number(m[2]), Number(m[1]));
 	return null;
-}
-
-function fmtIso(d) {
-	const y = d.getFullYear();
-	const mo = String(d.getMonth() + 1).padStart(2, "0");
-	const day = String(d.getDate()).padStart(2, "0");
-	return `${y}-${mo}-${day}`;
-}
-
-/** @typedef {'none' | 'iso' | 'dmy_dot' | 'dmy_slash'} DateInputMask */
-
-function isoToMaskedDisplay(iso, mask) {
-	if (!iso || mask === "none") return String(iso ?? "");
-	const d = parseIsoDate(iso);
-	if (!d) return "";
-	const y = d.getFullYear();
-	const mo = String(d.getMonth() + 1).padStart(2, "0");
-	const day = String(d.getDate()).padStart(2, "0");
-	if (mask === "iso") return `${y}-${mo}-${day}`;
-	if (mask === "dmy_dot") return `${day}.${mo}.${y}`;
-	if (mask === "dmy_slash") return `${day}/${mo}/${y}`;
-	return String(iso);
-}
-
-function maskPlaceholder(mask, floating) {
-	if (floating) return undefined;
-	if (mask === "iso") return "ГГГГ-ММ-ДД";
-	if (mask === "dmy_dot") return "ДД.ММ.ГГГГ";
-	if (mask === "dmy_slash") return "ДД/ММ/ГГГГ";
-	return "ГГГГ-ММ-ДД или ДД.ММ.ГГГГ";
-}
-
-function digitsOnly(s) {
-	return String(s ?? "").replace(/\D/g, "");
-}
-
-function formatMaskFromDigits(mask, digits) {
-	const d = digits.slice(0, 8);
-	if (mask === "iso") {
-		let out = d.slice(0, 4);
-		if (d.length > 4) out += `-${d.slice(4, 6)}`;
-		if (d.length > 6) out += `-${d.slice(6, 8)}`;
-		return out;
-	}
-	if (mask === "dmy_dot") {
-		let out = d.slice(0, 2);
-		if (d.length > 2) out += `.${d.slice(2, 4)}`;
-		if (d.length > 4) out += `.${d.slice(4, 8)}`;
-		return out;
-	}
-	if (mask === "dmy_slash") {
-		let out = d.slice(0, 2);
-		if (d.length > 2) out += `/${d.slice(2, 4)}`;
-		if (d.length > 4) out += `/${d.slice(4, 8)}`;
-		return out;
-	}
-	return d;
-}
-
-function parseMaskedIsoDisplay(s) {
-	const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s ?? "").trim());
-	if (!m) return null;
-	return validateYmd(Number(m[1]), Number(m[2]), Number(m[3]));
-}
-
-function parseDmyMasked(s, sep) {
-	const esc = sep === "." ? "\\." : "\\/";
-	const re = new RegExp(`^(\\d{2})${esc}(\\d{2})${esc}(\\d{4})$`);
-	const m = re.exec(String(s ?? "").trim());
-	if (!m) return null;
-	const day = Number(m[1]);
-	const mo = Number(m[2]);
-	const y = Number(m[3]);
-	return validateYmd(y, mo, day);
 }
 
 function startOfMonth(d) {
@@ -157,7 +103,6 @@ function sameCalendarDay(a, b) {
 	);
 }
 
-/** Нормализует ISO-строки `YYYY-MM-DD` в множество для подсветки в календаре. */
 function markedIsoSetFromProp(markedDates) {
 	if (!Array.isArray(markedDates)) return new Set();
 	const s = new Set();
@@ -166,6 +111,33 @@ function markedIsoSetFromProp(markedDates) {
 		if (d) s.add(fmtIso(d));
 	}
 	return s;
+}
+
+function isoToParts(iso) {
+	const d = parseIsoDate(iso);
+	if (!d) return { dd: "", mm: "", yyyy: "" };
+	return {
+		dd: String(d.getDate()).padStart(2, "0"),
+		mm: String(d.getMonth() + 1).padStart(2, "0"),
+		yyyy: String(d.getFullYear()),
+	};
+}
+
+function getPart(parts, idx) {
+	if (idx === 0) return parts.dd;
+	if (idx === 1) return parts.mm;
+	return parts.yyyy;
+}
+
+function setPart(parts, idx, val) {
+	if (idx === 0) return { ...parts, dd: val };
+	if (idx === 1) return { ...parts, mm: val };
+	return { ...parts, yyyy: val };
+}
+
+function tryDateFromParts(parts) {
+	if (parts.dd.length !== 2 || parts.mm.length !== 2 || parts.yyyy.length !== 4) return null;
+	return validateYmd(Number(parts.yyyy), Number(parts.mm), Number(parts.dd));
 }
 
 const MONTH_NAMES = [
@@ -186,10 +158,7 @@ const MONTH_NAMES = [
 const WEEKDAYS_MON = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
 /**
- * Дата: текстовый ввод + календарь. Значение формы — `YYYY-MM-DD`.
- * Маска ввода задаётся через `dateInputMask` (`none` — как раньше, ISO или ДД.ММ.ГГГГ; `iso` — ГГГГ-ММ-ДД;
- * `dmy_dot` / `dmy_slash` — день-месяц-год с разделителем).
- * `markedDates` — ISO-даты (`YYYY-MM-DD`), подсвеченные в календаре фоном (отличаются от «сегодня» с рамкой).
+ * Дата: три поля (день / месяц / год) как у OTP по UX + календарь. Значение — `YYYY-MM-DD`.
  *
  * @param {{
  *   id?: string,
@@ -206,14 +175,15 @@ const WEEKDAYS_MON = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
  *   error?: string | boolean,
  *   helperText?: string,
  *   fullWidth?: boolean,
- *   dateInputMask?: DateInputMask,
+ *   dateOrder?: DateSplitOrder,
+ *   dateSeparator?: '.' | '/' | '-',
  *   markedDates?: string[],
  *   popoverMaxVisibleRows?: number,
  *   popoverRowHeightPx?: number,
  *   popoverMaxHeightPx?: number,
  * }} props
  */
-export function DateField({
+export function DateSplitField({
 	id: idProp,
 	label,
 	labelMode = "above",
@@ -228,31 +198,36 @@ export function DateField({
 	error,
 	helperText,
 	fullWidth = false,
-	dateInputMask = "none",
+	dateOrder = "dmy",
+	dateSeparator = ".",
 	markedDates,
 	popoverMaxVisibleRows = 5,
 	popoverRowHeightPx = 52,
 	popoverMaxHeightPx,
 }) {
 	const autoId = useId();
-	const id = idProp || autoId;
-	const helperId = `${id}-helper`;
+	const fieldId = idProp || autoId;
+	const helperId = `${fieldId}-helper`;
 	const [focused, setFocused] = useState(false);
 	const [open, setOpen] = useState(false);
 	const rootRef = useRef(null);
+	const inputRowRef = useRef(null);
 	const popoverRef = useRef(null);
+	const partRefs = useRef(/** @type {(HTMLInputElement|null)[]} */ ([null, null, null]));
+
 	const { value: v, setValue, filled, isControlled } = useFilledState(value, defaultValue);
-	const [text, setText] = useState(() =>
-		isoToMaskedDisplay(value !== undefined ? value : (defaultValue ?? ""), dateInputMask),
+	const [parts, setParts] = useState(() =>
+		isoToParts(value !== undefined ? value : (defaultValue ?? "")),
 	);
+	const partsRef = useRef(parts);
+	partsRef.current = parts;
+
+	const displayOrder = ORDER[dateOrder] ?? ORDER.dmy;
 
 	const minD = useMemo(() => parseIsoDate(min), [min]);
 	const maxD = useMemo(() => parseIsoDate(max), [max]);
-
 	const selected = useMemo(() => parseIsoDate(v), [v]);
-
 	const markedIsoSet = useMemo(() => markedIsoSetFromProp(markedDates), [markedDates]);
-
 	const [view, setView] = useState(() => startOfMonth(selected || new Date()));
 
 	const { popoverStyle } = useAnchorPopoverLayout(open && !disabled, rootRef, popoverRef, {
@@ -264,8 +239,8 @@ export function DateField({
 	});
 
 	useEffect(() => {
-		setText(isoToMaskedDisplay(v ?? "", dateInputMask));
-	}, [v, dateInputMask]);
+		setParts(isoToParts(v ?? ""));
+	}, [v]);
 
 	useEffect(() => {
 		if (selected) setView(startOfMonth(selected));
@@ -290,7 +265,6 @@ export function DateField({
 	}, [open]);
 
 	const floating = labelMode === "floating";
-
 	const showError = Boolean(error);
 	const helper =
 		(typeof error === "string" ? error : error ? "Ошибка" : "") ||
@@ -300,54 +274,139 @@ export function DateField({
 
 	const atMidnight = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
-	const inRange = (d) => {
-		const t = atMidnight(d);
-		if (minD && t < atMidnight(minD)) return false;
-		if (maxD && t > atMidnight(maxD)) return false;
-		return true;
+	const inRange = useCallback(
+		(d) => {
+			const t = atMidnight(d);
+			if (minD && t < atMidnight(minD)) return false;
+			if (maxD && t > atMidnight(maxD)) return false;
+			return true;
+		},
+		[minD, maxD],
+	);
+
+	const emit = useCallback(
+		(iso) => {
+			if (!isControlled) setValue(iso);
+			const target = { value: iso, name, id: fieldId };
+			onChange?.({ target, currentTarget: target });
+		},
+		[isControlled, setValue, onChange, name, fieldId],
+	);
+
+	const focusPart = useCallback((partIdx) => {
+		requestAnimationFrame(() => {
+			const el = partRefs.current[partIdx];
+			if (el) {
+				el.focus();
+				el.select();
+			}
+		});
+	}, []);
+
+	const focusNext = useCallback(
+		(currentPartIdx) => {
+			const pos = displayOrder.indexOf(currentPartIdx);
+			if (pos < 0 || pos >= displayOrder.length - 1) return;
+			focusPart(displayOrder[pos + 1]);
+		},
+		[displayOrder, focusPart],
+	);
+
+	const focusPrev = useCallback(
+		(currentPartIdx) => {
+			const pos = displayOrder.indexOf(currentPartIdx);
+			if (pos <= 0) return;
+			focusPart(displayOrder[pos - 1]);
+		},
+		[displayOrder, focusPart],
+	);
+
+	const tryEmitComplete = useCallback(
+		(p) => {
+			const dt = tryDateFromParts(p);
+			if (!dt || !inRange(dt)) return false;
+			emit(fmtIso(dt));
+			return true;
+		},
+		[emit, inRange],
+	);
+
+	const handlePartChange = (partIdx, e) => {
+		const digits = e.target.value.replace(/\D/g, "");
+		const maxLen = PART_MAX[partIdx];
+		const nextVal = digits.slice(0, maxLen);
+		setParts((prev) => {
+			const nextParts = setPart(prev, partIdx, nextVal);
+			if (nextVal.length === maxLen) {
+				requestAnimationFrame(() => {
+					if (!tryEmitComplete(nextParts)) focusNext(partIdx);
+				});
+			}
+			return nextParts;
+		});
 	};
 
-	const emit = (iso) => {
-		if (!isControlled) setValue(iso);
-		const target = { value: iso, name, id };
-		onChange?.({ target, currentTarget: target });
+	const handlePartKeyDown = (partIdx, e) => {
+		if (e.key === "Backspace") {
+			const cur = getPart(parts, partIdx);
+			if (!cur) {
+				focusPrev(partIdx);
+				e.preventDefault();
+			}
+		}
+		if (e.key === "ArrowLeft") {
+			const pos = displayOrder.indexOf(partIdx);
+			if (pos > 0) {
+				e.preventDefault();
+				focusPart(displayOrder[pos - 1]);
+			}
+		}
+		if (e.key === "ArrowRight") {
+			const pos = displayOrder.indexOf(partIdx);
+			if (pos < displayOrder.length - 1) {
+				e.preventDefault();
+				focusPart(displayOrder[pos + 1]);
+			}
+		}
 	};
 
-	const tryCommitInput = () => {
-		const raw = text.trim();
-		if (!raw) {
-			emit("");
-			return;
-		}
-		let parsed = null;
-		if (dateInputMask === "none") {
-			parsed = parseFlexibleDate(raw);
-		} else if (dateInputMask === "iso") {
-			parsed = parseMaskedIsoDisplay(raw);
-		} else if (dateInputMask === "dmy_dot") {
-			parsed = parseDmyMasked(raw, ".");
-		} else if (dateInputMask === "dmy_slash") {
-			parsed = parseDmyMasked(raw, "/");
-		}
-		if (!parsed || !inRange(parsed)) {
-			setText(isoToMaskedDisplay(v ?? "", dateInputMask));
-			return;
-		}
+	const handlePartBlur = useCallback(
+		(e) => {
+			const next = e.relatedTarget;
+			if (next instanceof Node) {
+				if (inputRowRef.current?.contains(next)) return;
+				if (popoverRef.current?.contains(next)) return;
+			}
+			setFocused(false);
+			const cur = partsRef.current;
+			if (!cur.dd && !cur.mm && !cur.yyyy) {
+				emit("");
+				return;
+			}
+			const dt = tryDateFromParts(cur);
+			if (dt && inRange(dt)) emit(fmtIso(dt));
+			else setParts(isoToParts(v ?? ""));
+		},
+		[emit, inRange, v],
+	);
+
+	const handlePasteAny = (e) => {
+		const text = e.clipboardData.getData("text");
+		const parsed = parseFlexibleDate(text);
+		if (!parsed) return;
+		e.preventDefault();
+		if (!inRange(parsed)) return;
 		emit(fmtIso(parsed));
 	};
 
 	const cells = useMemo(() => buildMonthCells(view), [view]);
-
-	const canPrev =
-		!minD || addMonths(view, -1).getTime() >= startOfMonth(minD).getTime();
-	const canNext =
-		!maxD || startOfMonth(addMonths(view, 1)).getTime() <= startOfMonth(maxD).getTime();
-
+	const canPrev = !minD || addMonths(view, -1).getTime() >= startOfMonth(minD).getTime();
+	const canNext = !maxD || startOfMonth(addMonths(view, 1)).getTime() <= startOfMonth(maxD).getTime();
 	const today = new Date();
 	const todayOk = inRange(today);
 
 	const inner = (
-		<DateRoot ref={rootRef}>
+		<DateSplitRoot ref={rootRef}>
 			{name ? (
 				<DateHidden
 					type="hidden"
@@ -359,49 +418,39 @@ export function DateField({
 					required={required}
 				/>
 			) : null}
-			<DateInputRow>
-				<DateTextInput
-					id={id}
-					type="text"
-					inputMode="numeric"
-					autoComplete="off"
-					placeholder={maskPlaceholder(dateInputMask, floating)}
-					disabled={disabled}
-					required={required}
-					aria-haspopup="dialog"
-					aria-expanded={open}
-					aria-invalid={showError || undefined}
-					aria-describedby={describedBy}
-					value={text}
-					onChange={(e) => {
-						if (dateInputMask === "none") {
-							setText(e.target.value);
-							return;
-						}
-						const t = e.target.value.trim();
-						const flex = t ? parseFlexibleDate(t) : null;
-						if (flex) {
-							setText(isoToMaskedDisplay(fmtIso(flex), dateInputMask));
-							return;
-						}
-						setText(formatMaskFromDigits(dateInputMask, digitsOnly(e.target.value)));
-					}}
-					onFocus={() => setFocused(true)}
-					onBlur={() => {
-						tryCommitInput();
-						setFocused(false);
-					}}
-					onKeyDown={(e) => {
-						if (e.key === "Enter") {
-							e.preventDefault();
-							tryCommitInput();
-						}
-					}}
-					$frameless={floating}
-					$floating={floating}
-					$focused={focused || open}
-					$error={showError}
-				/>
+			<DateSplitInputRow ref={inputRowRef}>
+				{displayOrder.map((partIdx, i) => (
+					<React.Fragment key={partIdx}>
+						{i > 0 ? <DateSplitSep>{dateSeparator}</DateSplitSep> : null}
+						<DatePartInput
+							ref={(el) => {
+								partRefs.current[partIdx] = el;
+							}}
+							id={i === 0 ? fieldId : `${fieldId}-${partIdx}`}
+							type="text"
+							inputMode="numeric"
+							autoComplete="off"
+							maxLength={PART_MAX[partIdx]}
+							disabled={disabled}
+							aria-label={PART_ARIA[partIdx]}
+							aria-invalid={showError || undefined}
+							aria-describedby={i === 0 ? describedBy : undefined}
+							aria-haspopup={i === 0 ? "dialog" : undefined}
+							aria-expanded={i === 0 ? open : undefined}
+							value={getPart(parts, partIdx)}
+							onChange={(e) => handlePartChange(partIdx, e)}
+							onKeyDown={(e) => handlePartKeyDown(partIdx, e)}
+							onPaste={handlePasteAny}
+							onFocus={() => setFocused(true)}
+							onBlur={handlePartBlur}
+							$wide={partIdx === 2}
+							$frameless={floating}
+							$floating={floating}
+							$focused={focused || open}
+							$error={showError}
+						/>
+					</React.Fragment>
+				))}
 				<DateCalButton
 					type="button"
 					tabIndex={-1}
@@ -418,7 +467,7 @@ export function DateField({
 				>
 					▾
 				</DateCalButton>
-			</DateInputRow>
+			</DateSplitInputRow>
 			{open && !disabled && (
 				<DatePop ref={popoverRef} role="dialog" aria-label="Календарь" style={popoverStyle}>
 					<DateNav>
@@ -477,12 +526,12 @@ export function DateField({
 					</DateTodayBtn>
 				</DatePop>
 			)}
-		</DateRoot>
+		</DateSplitRoot>
 	);
 
 	return (
 		<FieldShell
-			id={id}
+			id={fieldId}
 			label={label}
 			labelMode={labelMode}
 			error={error}

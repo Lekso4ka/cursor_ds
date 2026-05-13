@@ -207,17 +207,27 @@ export const DateDayBtn = styled.button`
 		opacity: 0.45;
 	`}
 	${(p) =>
+		p.$marked &&
+		!p.$selected &&
+		!p.$today &&
+		`
+		background: rgba(125, 211, 252, 0.16);
+		border-color: transparent;
+	`}
+	${(p) =>
 		p.$today &&
 		!p.$selected &&
 		`
-		border-color: rgba(125,211,252,0.35);
-		background: rgba(125,211,252,0.08);
+		border-color: rgba(125, 211, 252, 0.55);
+		background: transparent;
+		box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.35);
 	`}
 	${(p) =>
 		p.$selected &&
 		`
 		background: rgba(125,211,252,0.22);
 		border-color: rgba(125,211,252,0.45);
+		box-shadow: none;
 	`}
 `;
 

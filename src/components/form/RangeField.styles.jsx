@@ -9,6 +9,11 @@ export const RangeTrackWrap = styled.div`
 	align-items: center;
 `;
 
+/** Один ребёнок для FieldShell: слайдер + опциональный блок подписей под дорожкой. */
+export const RangeSingleShell = styled.div`
+	width: 100%;
+`;
+
 /** Два ползунка в одной дорожке: у верхнего слоя отключены события, кроме thumb (WebKit / Firefox). */
 export const RangeDualInput = styled.input`
 	position: absolute;
@@ -88,11 +93,26 @@ export const RangeSingleInput = styled.input`
 	}
 `;
 
-export const RangeValueRow = styled.div`
+export const RangeBoundsRow = styled.div`
 	display: flex;
 	justify-content: space-between;
+	gap: 12px;
+	font-size: 12px;
+	color: ${t.muted};
+	margin-top: 2px;
+`;
+
+export const RangeValueRow = styled.div`
+	display: flex;
+	justify-content: ${(p) => (p.$variant === "center" ? "center" : "space-between")};
+	align-items: center;
 	gap: 12px;
 	font-size: 13px;
 	color: ${t.muted};
 	margin-top: 4px;
+
+	& strong {
+		color: ${t.fg};
+		font-weight: 650;
+	}
 `;

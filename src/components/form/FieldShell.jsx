@@ -8,6 +8,33 @@ import {
 } from "./FieldShell.styles";
 
 /**
+ * Один визуальный контрол для оболочки: игнорируем `null`/`false` и строки из одних пробелов/переносов
+ * (они появляются при форматировании JSX вокруг выражения вроде `{inner}`).
+ */
+function resolveSingleChild(children) {
+	const nodes = React.Children.toArray(children).filter((node) => {
+		if (node == null || node === false) return false;
+		if (typeof node === "string") return node.trim().length > 0;
+		return true;
+	});
+
+	if (nodes.length === 0) {
+		throw new Error("FieldShell requires one child element; received none (after trimming empty text nodes).");
+	}
+	if (nodes.length > 1) {
+		throw new Error(
+			`FieldShell requires exactly one child element; received ${nodes.length} (after trimming empty text nodes).`,
+		);
+	}
+
+	const only = nodes[0];
+	if (!React.isValidElement(only)) {
+		throw new Error("FieldShell child must be a single React element.");
+	}
+	return only;
+}
+
+/**
  * @param {{
  *   id?: string,
  *   label?: string,
@@ -18,7 +45,7 @@ import {
  *   fullWidth?: boolean,
  *   filled?: boolean,
  *   focused?: boolean,
- *   children: React.ReactElement,
+ *   children: React.ReactNode,
  *   preserveHelperSpace?: boolean,
  *   attachAriaToChild?: boolean,
  * }} props
@@ -50,7 +77,7 @@ export function FieldShell({
 
 	const describedBy = helper ? helperId : undefined;
 
-	const child = React.Children.only(children);
+	const child = resolveSingleChild(children);
 	const merged = attachAriaToChild
 		? React.cloneElement(child, {
 				id,
