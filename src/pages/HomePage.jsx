@@ -6,6 +6,7 @@ import {
 	NumberField,
 	PasswordField,
 	SelectField,
+	TagInput,
 	DateField,
 	DateSplitField,
 	TimeField,
@@ -15,6 +16,8 @@ import {
 	RadioGroup,
 	RadioItem,
 	RangeField,
+	FileUpload,
+	Rating,
 } from "../components/form";
 import { formTokens as t } from "../components/form/tokens";
 
@@ -81,6 +84,17 @@ const DEMO_OPTIONS = [
 /** Даты для демо подсветки в календаре (июнь 2026). */
 const DEMO_MARKED_DATES = ["2026-06-03", "2026-06-10", "2026-06-17", "2026-06-24"];
 
+const TAG_SUGGEST = ["react", "typescript", "emotion", "webpack", "node", "css", "vite"];
+
+async function demoFileUpload(file, { signal, onProgress }) {
+	for (let i = 0; i <= 10; i++) {
+		await new Promise((r) => setTimeout(r, 70));
+		if (signal.aborted) throw new DOMException("aborted", "AbortError");
+		onProgress(i / 10);
+	}
+	return { ok: true, name: file.name };
+}
+
 export function HomePage() {
 	const [otpCode, setOtpCode] = useState("");
 	const [creatableCityOptions, setCreatableCityOptions] = useState(DEMO_OPTIONS);
@@ -90,13 +104,16 @@ export function HomePage() {
 	const [moneyDemo, setMoneyDemo] = useState("150000");
 	const [splitDateIso, setSplitDateIso] = useState("2026-06-15");
 	const [switchDemo, setSwitchDemo] = useState(true);
+	const [ratingStars, setRatingStars] = useState(3);
+	const [tagSkills, setTagSkills] = useState(["react", "typescript"]);
+	const [tagLabels, setTagLabels] = useState([]);
 
 	return (
 		<Page>
 			<Title>Демонстрация полей формы</Title>
 			<Lead>
 				Компоненты на <code>@emotion/styled</code>: текст, многострочный ввод, число, пароль,
-				чекбокс, переключатель (SwitchButton), радио, диапазон, комбобокс (select / multiselect / chips), дата и время. У полей
+				чекбокс, переключатель, рейтинг (звёзды), радио, диапазон, комбобокс (select / multiselect / chips), дата и время. У полей
 				ввода — подпись сверху, «плавающая» подпись или без подписи.
 			</Lead>
 
@@ -163,6 +180,35 @@ export function HomePage() {
 					/>
 					<SwitchButton label="Недоступно" disabled defaultChecked helperText="disabled" />
 					<SwitchButton label="С ошибкой" error="Включите опцию" />
+				</Grid>
+			</Section>
+
+			<Section>
+				<SectionTitle>Рейтинг (звёзды)</SectionTitle>
+				<Grid>
+					<Rating
+						label="Интерактивно, целые"
+						value={ratingStars}
+						onChange={setRatingStars}
+						helperText={`Текущее значение: ${ratingStars}`}
+					/>
+					<Rating
+						label="Половина звезды"
+						precision="half"
+						defaultValue={3.5}
+						helperText="precision=&quot;half&quot; — клик слева/справа по звезде"
+					/>
+					<Rating label="Размер sm" size="sm" defaultValue={4} />
+					<Rating label="Размер lg" size="lg" defaultValue={2} voteCount={42} />
+					<Rating
+						label="Только чтение"
+						value={3.5}
+						precision="half"
+						readOnly
+						voteCount={12847}
+						helperText="readOnly + voteCount"
+					/>
+					<Rating label="Отключено" value={4} disabled helperText="disabled" />
 				</Grid>
 			</Section>
 
@@ -346,6 +392,35 @@ export function HomePage() {
 			</Section>
 
 			<Section>
+				<SectionTitle>Теги (TagInput)</SectionTitle>
+				<Grid>
+					<TagInput
+						label="Навыки"
+						labelMode="above"
+						value={tagSkills}
+						onChange={(e) => setTagSkills(e.target.value)}
+						suggestions={TAG_SUGGEST}
+						maxTags={6}
+						pattern={/^[a-z0-9][a-z0-9-]{0,30}$/i}
+						validateTag={(tag) => (tag.length < 2 ? "Минимум 2 символа" : null)}
+						commitSeparators={{ enter: true, comma: true, space: false }}
+						helperText={`Сейчас: ${tagSkills.join(", ")}. Enter или запятая; подсказки; max 6; без дубликатов`}
+					/>
+					<TagInput
+						label="Метки"
+						labelMode="floating"
+						value={tagLabels}
+						onChange={(e) => setTagLabels(e.target.value)}
+						suggestions={["bug", "feature", "docs", "breaking", "chore"]}
+						maxTags={8}
+						commitSeparators={{ enter: true, comma: true, space: true }}
+						duplicatePolicy="allow"
+						helperText="Пробел завершает тег; дубликаты разрешены"
+					/>
+				</Grid>
+			</Section>
+
+			<Section>
 				<SectionTitle>OTP (код из цифр)</SectionTitle>
 				<Grid>
 					<OtpInput
@@ -438,6 +513,38 @@ export function HomePage() {
 						value={time12}
 						onChange={(e) => setTime12(e.target.value)}
 						helperText="Ввод: ЧЧ:ММ, h:mm AM/PM или 13:30; в форме — всегда 24 ч (HH:MM)"
+					/>
+				</Grid>
+			</Section>
+
+			<Section>
+				<SectionTitle>Загрузка файлов</SectionTitle>
+				<Grid>
+					<FileUpload
+						label="Изображения (зона + кнопка, onUpload)"
+						variant="combined"
+						accept="image/*"
+						maxFiles={4}
+						maxSize={4 * 1024 * 1024}
+						helperText="Имитация запроса: прогресс и статус «готово»"
+						onUpload={demoFileUpload}
+						fullWidth
+					/>
+					<FileUpload
+						label="Любые файлы (только кнопка)"
+						variant="button"
+						maxFiles={3}
+						helperText="Перетаскивание на всю область блока"
+						onChange={(files) => {
+							if (files.length) console.debug("[FileUpload demo button]", files);
+						}}
+					/>
+					<FileUpload
+						label="Только drop-зона"
+						variant="dropzone"
+						accept=".pdf,application/pdf"
+						maxFiles={2}
+						maxSize={5 * 1024 * 1024}
 					/>
 				</Grid>
 			</Section>
